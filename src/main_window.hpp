@@ -154,7 +154,11 @@ public:
 
 						frame->ExecuteJavaScript(L"alert('" + message + +L"'); window.close();", frame->GetURL(), 0);
 					},
-					true);
+					true,
+					[](CefRefPtr<CefBrowser> browser) {
+						auto frame = browser->GetMainFrame();
+						frame->ExecuteJavaScript(L"window.close();", frame->GetURL(), 0);
+					});
 			}
 
 			return false;
