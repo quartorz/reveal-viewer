@@ -84,11 +84,17 @@ public:
 
 			::SetWindowLongPtrW(hwnd, GWL_STYLE, window_style_);
 
-			auto width = ::GetSystemMetrics(SM_CXSCREEN);
-			auto height = ::GetSystemMetrics(SM_CYSCREEN);
+			auto hmonitor = ::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+			MONITORINFO mi;
+
+			mi.cbSize = sizeof(MONITORINFO);
+			::GetMonitorInfo(hmonitor, &mi);
 
 			::SetWindowPos(
-				hwnd, nullptr, 0, 0, width, height,
+				hwnd, nullptr,
+				mi.rcMonitor.left, mi.rcMonitor.top,
+				mi.rcMonitor.right - mi.rcMonitor.left,
+				mi.rcMonitor.bottom - mi.rcMonitor.top,
 				SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 		}
 
