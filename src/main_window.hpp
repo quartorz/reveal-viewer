@@ -21,7 +21,8 @@ class main_window :
 		quote::win32::quit_on_close<main_window>,
 		quote::win32::resizer<main_window>,
 		quote::win32::on_close<main_window>,
-		quote::win32::keyboard<main_window>
+		quote::win32::keyboard<main_window>,
+		quote::win32::focus<main_window>
 	>,
 	public quote::win32::creator<main_window>
 {
@@ -194,15 +195,16 @@ public:
 
 			if (id == menu_command::PRINT_TO_PDF) {
 				CefWindowInfo window_info;
-
 				window_info.SetAsPopup(this->get_hwnd(), L"PDF");
 
 				CefBrowserSettings settings;
 
+				auto frame = browser->GetMainFrame();
+
 				browser->GetHost()->CreateBrowserSync(
 					window_info,
 					browser_handler_.get(),
-					L"http://localhost:" + std::to_wstring(server_.get_port()) + L"/?print-pdf",
+					frame->GetURL().ToWString() + L"?print-pdf",
 					settings,
 					nullptr);
 
@@ -317,6 +319,15 @@ public:
 	}
 
 	void on_key_up(unsigned int keycode)
+	{
+	}
+
+	void on_get_focus(HWND hwnd)
+	{
+		::SetFocus(hwnd_browser_);
+	}
+
+	void on_lost_focus(HWND hwnd)
 	{
 	}
 
