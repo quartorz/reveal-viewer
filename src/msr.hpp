@@ -93,6 +93,8 @@ namespace msr {
 			return "image/tiff";
 		} else if (ext == ".woff") {
 			return "application/x-font-woff";
+		} else if (ext == ".pdf") {
+			return "application/pdf";
 		}
 
 		// unknown or not implemented
@@ -184,13 +186,13 @@ namespace msr {
 					auto pbuf = sendbuf.get();
 
 					if (request_.invalid) {
-						status_line = "HTTP/1.1 400 Bad Request\r\n";
+						status_line = "HTTP/1.0 400 Bad Request\r\n";
 						headers += "Content-Length: 0\r\n\r\n";
 						pbuf->insert(pbuf->begin(), status_line.begin(), status_line.end());
 						pbuf->insert(pbuf->end() - 1, headers.begin(), headers.end());
 					} else {
 						if (request_.method != "GET") {
-							status_line = "HTTP/1.1 501 Not Implemented\r\n";
+							status_line = "HTTP/1.0 501 Not Implemented\r\n";
 							headers += "Content-Length: 0\r\n\r\n";
 							pbuf->insert(pbuf->begin(), status_line.begin(), status_line.end());
 							pbuf->insert(pbuf->end() - 1, headers.begin(), headers.end());
@@ -210,14 +212,14 @@ namespace msr {
 							}
 
 							if (error.value() != boost::system::errc::success || !boost::filesystem::exists(path)) {
-								status_line = "HTTP/1.1 404 Not Found\r\n";
+								status_line = "HTTP/1.0 404 Not Found\r\n";
 								headers += "Content-Length: 0\r\n\r\n";
 								pbuf->insert(pbuf->begin(), status_line.begin(), status_line.end());
 								pbuf->insert(pbuf->end() - 1, headers.begin(), headers.end());
 							} else {
 								auto last_modified = boost::posix_time::from_time_t(boost::filesystem::last_write_time(path));
 
-								status_line = "HTTP/1.1 200 OK\r\n";
+								status_line = "HTTP/1.0 200 OK\r\n";
 								headers += "Last-Modified: " + format_time(last_modified) + "\r\n";
 								headers += "Content-Type: " + content_type(path.extension().string()) + "\r\n";
 								headers += "Content-Length: " + std::to_string(boost::filesystem::file_size(path)) + "\r\n\r\n";
