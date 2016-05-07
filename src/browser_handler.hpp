@@ -202,6 +202,51 @@ public:
 
 	// CefLifeSpanHandler
 	QUOTE_DEFINE_SIMPLE_PROPERTY(
+		std::function<
+			bool(
+				CefRefPtr<CefBrowser> browser,
+				CefRefPtr<CefFrame> frame,
+				const CefString& target_url,
+				const CefString& target_frame_name,
+				WindowOpenDisposition target_disposition,
+				bool user_gesture,
+				const CefPopupFeatures& popupFeatures,
+				CefWindowInfo& windowInfo,
+				CefRefPtr<CefClient>& client,
+				CefBrowserSettings& settings,
+				bool* no_javascript_access)>,
+		on_before_popup,
+		accessor (setter),
+		default ([](...) { return false; }));
+	bool OnBeforePopup(
+		CefRefPtr<CefBrowser> browser,
+		CefRefPtr<CefFrame> frame,
+		const CefString& target_url,
+		const CefString& target_frame_name,
+		WindowOpenDisposition target_disposition,
+		bool user_gesture,
+		const CefPopupFeatures& popupFeatures,
+		CefWindowInfo& windowInfo,
+		CefRefPtr<CefClient>& client,
+		CefBrowserSettings& settings,
+		bool* no_javascript_access
+		) override
+	{
+		return on_before_popup_(
+			browser,
+			frame,
+			target_url,
+			target_frame_name,
+			target_disposition,
+			user_gesture,
+			popupFeatures,
+			windowInfo,
+			client,
+			settings,
+			no_javascript_access);
+	}
+
+	QUOTE_DEFINE_SIMPLE_PROPERTY(
 		std::function<bool(CefRefPtr<CefBrowser> browser)>,
 		on_after_created,
 		accessor (setter),
