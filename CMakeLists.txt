@@ -6,6 +6,7 @@ set(
   SOURCES
   src/main.cpp
   src/main_window.hpp
+  src/browser_window.hpp
   src/msr.hpp
   src/utility.hpp
   src/browser_handler.hpp

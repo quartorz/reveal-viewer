@@ -19,7 +19,8 @@ class browser_handler :
 	public CefDisplayHandler,
 	public CefLifeSpanHandler,
 	public CefLoadHandler,
-	public CefKeyboardHandler
+	public CefKeyboardHandler,
+	public CefRequestHandler
 {
 	IMPLEMENT_REFCOUNTING(browser_handler);
 
@@ -63,13 +64,18 @@ public:
 		return this;
 	}
 
+	CefRefPtr<CefRequestHandler> GetRequestHandler() override
+	{
+		return this;
+	}
+
 	QUOTE_DEFINE_SIMPLE_PROPERTY(
 		std::function<bool(
 			CefRefPtr<CefBrowser> browser,
 			CefProcessId source_process,
 			CefRefPtr<CefProcessMessage> message)>,
 		on_process_message_received,
-		accessor(setter),
+		accessor (setter),
 		default ([](...) { return false; }));
 	bool OnProcessMessageReceived(
 		CefRefPtr<CefBrowser> browser,
@@ -188,12 +194,10 @@ public:
 	{
 		if (!on_title_change_(browser, title)) {
 			auto hwnd = browser->GetHost()->GetWindowHandle();
+			auto hparent = ::GetAncestor(hwnd, GA_PARENT);
 
-			if (browser_list_.front()->IsSame(browser)) {
-				auto hparent = ::GetAncestor(hwnd, GA_PARENT);
-				if (hparent != nullptr) {
-					::SetWindowTextW(hparent, title.c_str());
-				}
+			if (hparent != nullptr) {
+				::SetWindowTextW(hparent, title.c_str());
 			} else {
 				::SetWindowTextW(hwnd, title.c_str());
 			}
@@ -208,7 +212,7 @@ public:
 				CefRefPtr<CefFrame> frame,
 				const CefString& target_url,
 				const CefString& target_frame_name,
-				WindowOpenDisposition target_disposition,
+				CefLifeSpanHandler::WindowOpenDisposition target_disposition,
 				bool user_gesture,
 				const CefPopupFeatures& popupFeatures,
 				CefWindowInfo& windowInfo,
@@ -223,7 +227,7 @@ public:
 		CefRefPtr<CefFrame> frame,
 		const CefString& target_url,
 		const CefString& target_frame_name,
-		WindowOpenDisposition target_disposition,
+		CefLifeSpanHandler::WindowOpenDisposition target_disposition,
 		bool user_gesture,
 		const CefPopupFeatures& popupFeatures,
 		CefWindowInfo& windowInfo,
@@ -372,6 +376,50 @@ public:
 		) override
 	{
 		return on_key_event_(browser, event, os_event);
+	}
+
+	// CefRequestHandler
+	QUOTE_DEFINE_SIMPLE_PROPERTY(
+		std::function<
+			bool(
+				CefRefPtr<CefBrowser> browser,
+				CefRefPtr<CefFrame> frame,
+				CefRefPtr<CefRequest> request,
+				bool is_redirect)>,
+		on_before_browse,
+		accessor (setter),
+		default ([](...) { return false; }));
+	bool OnBeforeBrowse(
+		CefRefPtr<CefBrowser> browser,
+		CefRefPtr<CefFrame> frame,
+		CefRefPtr<CefRequest> request,
+		bool is_redirect
+		) override
+	{
+		return on_before_browse_(browser, frame, request, is_redirect);
+	}
+
+	QUOTE_DEFINE_SIMPLE_PROPERTY(
+		std::function<
+			bool(
+				CefRefPtr<CefBrowser> browser,
+				CefRefPtr<CefFrame> frame,
+				const CefString& target_url,
+				CefRequestHandler::WindowOpenDisposition target_disposition,
+				bool user_gesture)>,
+		on_open_url_from_tab,
+		accessor (setter),
+		default ([](...) { return false; }));
+	bool OnOpenURLFromTab(
+		CefRefPtr<CefBrowser> browser,
+		CefRefPtr<CefFrame> frame,
+		const CefString& target_url,
+		CefRequestHandler::WindowOpenDisposition target_disposition,
+		bool user_gesture
+		) override
+	{
+		return on_open_url_from_tab_(
+			browser, frame, target_url, target_disposition, user_gesture);
 	}
 
 #pragma endregion

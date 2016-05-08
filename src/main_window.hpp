@@ -8,6 +8,7 @@
 #include <quote/cef/print_to_pdf.hpp>
 
 #include <thread>
+#include <unordered_map>
 
 #include "include/wrapper/cef_closure_task.h"
 
@@ -15,37 +16,24 @@
 #include "browser_handler.hpp"
 #include "utility.hpp"
 
-class main_window :
-	public quote::win32::window<
-		main_window,
-		quote::win32::quit_on_close<main_window>,
-		quote::win32::resizer<main_window>,
-		quote::win32::on_close<main_window>,
-		quote::win32::keyboard<main_window>,
-		quote::win32::focus<main_window>
-	>,
-	public quote::win32::creator<main_window>
+#include "browser_window.hpp"
+
+class main_window : public browser_window
 {
 	// micro server for reveal.js
 	boost::asio::io_service io_service_;
 	msr::tcp_server server_ = { io_service_, 0 };
 	std::thread server_thread_;
 
-	// chromium
 	CefRefPtr<browser_handler> browser_handler_;
-	HWND hwnd_browser_ = nullptr;
-	CefRefPtr<CefBrowser> primary_browser_;
-
-	// window state
-	RECT window_rect_ = {};
-	bool is_full_screen_ = false;
-	LONG_PTR window_style_;
+	std::unordered_map<int, browser_window*> other_windows_;
 
 	// menu command IDs
 	enum class menu_command : int {
 		PRINT_TO_PDF,
 		COPY_URL,
-		OPEN_LINK
+		OPEN_LINK,
+		TOGGLE_NAVIGATE
 	};
 
 public:
@@ -59,52 +47,31 @@ public:
 	{
 	}
 
-	void toggle_full_screen()
+	browser_window *find_window(const CefRefPtr<CefBrowser> &browser)
 	{
-		auto hwnd = this->get_hwnd();
-
-		if (is_full_screen_) {
-			window_style_ = (window_style_ & ~WS_POPUPWINDOW) | WS_OVERLAPPEDWINDOW;
-
-			::SetWindowLongPtrW(hwnd, GWL_STYLE, window_style_);
-
-			::SetWindowPos(
-				hwnd,
-				nullptr,
-				window_rect_.left,
-				window_rect_.top,
-				window_rect_.right - window_rect_.left,
-				window_rect_.bottom - window_rect_.top,
-				SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
-		} else {
-			::GetWindowRect(hwnd, &window_rect_);
-
-			window_style_ = ::GetWindowLongPtrW(hwnd, GWL_STYLE);
-			window_style_ = (window_style_ & ~WS_OVERLAPPEDWINDOW) | WS_POPUPWINDOW;
-
-			::SetWindowLongPtrW(hwnd, GWL_STYLE, window_style_);
-
-			auto hmonitor = ::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-			MONITORINFO mi;
-
-			mi.cbSize = sizeof(MONITORINFO);
-			::GetMonitorInfo(hmonitor, &mi);
-
-			::SetWindowPos(
-				hwnd, nullptr,
-				mi.rcMonitor.left, mi.rcMonitor.top,
-				mi.rcMonitor.right - mi.rcMonitor.left,
-				mi.rcMonitor.bottom - mi.rcMonitor.top,
-				SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+		if (browser->IsSame(browser_)) {
+			return this;
 		}
 
-		is_full_screen_ = !is_full_screen_;
+		auto iter = other_windows_.find(browser->GetIdentifier());
+
+		if (iter != other_windows_.end()) {
+			return iter->second;
+		}
+
+		return nullptr;
 	}
 
 #pragma region quote window initializer and uninitializer
 
-	bool initialize()
+	bool initialize() override
 	{
+		is_primary_window(true);
+
+		if (!browser_window::initialize()) {
+			return false;
+		}
+
 		try {
 			wchar_t exe_path[MAX_PATH];
 
@@ -130,15 +97,15 @@ public:
 
 			CefBrowserSettings settings;
 
-			primary_browser_ = CefBrowserHost::CreateBrowserSync(
+			browser_ = CefBrowserHost::CreateBrowserSync(
 				window_info, browser_handler_.get(), L"http://localhost:" + std::to_wstring(port),
 				settings, nullptr);
 
-			if (primary_browser_.get() == nullptr) {
+			if (browser_.get() == nullptr) {
 				return false;
 			}
 
-			hwnd_browser_ = primary_browser_->GetHost()->GetWindowHandle();
+			hwnd_browser_ = browser_->GetHost()->GetWindowHandle();
 		} catch (std::exception &) {
 			return false;
 		}
@@ -187,6 +154,7 @@ public:
 			model->AddItem(static_cast<int>(menu_command::COPY_URL), L"&Copy URL");
 			model->AddSeparator();
 			model->AddItem(static_cast<int>(menu_command::PRINT_TO_PDF), L"&Print to PDF");
+			model->AddItem(static_cast<int>(menu_command::TOGGLE_NAVIGATE), L"&Show Navigate Buttons");
 		});
 
 		browser_handler_->on_context_menu_command([&](
@@ -198,10 +166,15 @@ public:
 			)
 		{
 			auto id = static_cast<menu_command>(command_id);
+			auto window = find_window(browser);
+
+			if (window == nullptr) {
+				return false;
+			}
 
 			if (id == menu_command::PRINT_TO_PDF) {
 				CefWindowInfo window_info;
-				window_info.SetAsPopup(this->get_hwnd(), L"PDF");
+				window_info.SetAsPopup(window->get_hwnd(), L"PDF");
 
 				CefBrowserSettings settings;
 
@@ -217,15 +190,17 @@ public:
 				return true;
 			} else if (id == menu_command::COPY_URL) {
 				if ((params->GetTypeFlags() & CM_TYPEFLAG_LINK) != 0) {
-					::copy_to_clipboard(this->get_hwnd(), params->GetLinkUrl());
+					::copy_to_clipboard(window->get_hwnd(), params->GetLinkUrl());
 				} else {
-					::copy_to_clipboard(this->get_hwnd(), params->GetPageUrl());
+					::copy_to_clipboard(window->get_hwnd(), params->GetPageUrl());
 				}
 				return true;
 			} else if (id == menu_command::OPEN_LINK) {
 				auto url = params->GetLinkUrl();
-				::ShellExecuteW(this->get_hwnd(), L"open", url.c_str(), nullptr, nullptr, SW_SHOW);
+				::ShellExecuteW(window->get_hwnd(), L"open", url.c_str(), nullptr, nullptr, SW_SHOW);
 				return true;
+			} else if (id == menu_command::TOGGLE_NAVIGATE) {
+				window->toggle_navigate_buttons();
 			}
 
 			return false;
@@ -237,17 +212,41 @@ public:
 			CefEventHandle os_event
 			)
 		{
-			if (browser->IsSame(primary_browser_)) {
-				if (event.type == KEYEVENT_RAWKEYDOWN && event.windows_key_code == VK_F11) {
-					this->toggle_full_screen();
+			if (event.type == KEYEVENT_RAWKEYDOWN) {
+				browser_window *window = find_window(browser);
+
+				if (window != nullptr) {
+					window->on_key_down(event.windows_key_code);
 				}
 			}
 
-			if (event.type == KEYEVENT_RAWKEYDOWN
-				&& event.windows_key_code == L'R'
-				&& ::GetKeyState(VK_CONTROL) < 0) {
-				browser->Reload();
+			return false;
+		});
+
+		browser_handler_->on_after_created([&](CefRefPtr<CefBrowser> browser) {
+			auto window = new browser_window();
+			auto hwnd = browser->GetHost()->GetWindowHandle();
+
+			if (!window->create()) {
+				browser->GetHost()->CloseBrowser(true);
+				return true;
 			}
+
+			auto style = ::GetWindowLongPtrW(hwnd, GWL_STYLE);
+
+			style &= ~WS_OVERLAPPEDWINDOW;
+			style |= WS_CHILDWINDOW;
+
+			::SetWindowLongPtrW(hwnd, GWL_STYLE, style);
+			::SetParent(hwnd, window->get_hwnd());
+			::SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOSIZE);
+
+			window->hwnd_browser(hwnd);
+			window->browser(browser);
+			window->hwnd_primary(this->get_hwnd());
+			window->show();
+
+			other_windows_.insert({ browser->GetIdentifier(), window });
 
 			return false;
 		});
@@ -255,7 +254,7 @@ public:
 		return true;
 	}
 
-	void uninitialize()
+	void uninitialize() override
 	{
 		io_service_.stop();
 		server_.stop();
@@ -267,74 +266,37 @@ public:
 		}
 
 		hwnd_browser_ = nullptr;
-		primary_browser_ = nullptr;
+		browser_ = nullptr;
 
-		if (browser_handler_ != nullptr) {
-			browser_handler_->CloseAllBrowsers(false);
-
-			// clear browser handler callbacks
-
-			browser_handler_->on_process_message_received(nullptr);
-			browser_handler_->on_before_context_menu(nullptr);
-			browser_handler_->on_context_menu_command(nullptr);
-			browser_handler_->on_key_event(nullptr);
+		for (auto &w : other_windows_) {
+			delete w.second;
 		}
+
+		browser_window::uninitialize();
 	}
 
 #pragma endregion
 
 #pragma region quote window handlers
 
-	void on_size(int width, int height)
-	{
-		if (hwnd_browser_) {
-			::SetWindowPos(
-				hwnd_browser_,
-				nullptr,
-				0,
-				0,
-				width,
-				height,
-				SWP_NOZORDER | SWP_NOMOVE);
-		}
-	}
-
 	// ウィンドウの閉じ方についてはCefLifeSpanHandler::DoClose()のドキュメントを参照
-	bool on_close()
+	bool on_close() override
 	{
-		if (browser_handler_->IsPrimaryBrowserClosing()) {
-			return true;
+		for (auto &w : other_windows_) {
+			::DestroyWindow(w.second->get_hwnd());
 		}
-		else if (primary_browser_ != nullptr) {
-			primary_browser_->GetHost()->CloseBrowser(false);
-			return false;
-		}
-		else {
-			return true;
-		}
+
+		return browser_window::on_close();
 	}
 
-	void on_key_down(unsigned int keycode)
+	void on_subwindow_close(int browser_id) override
 	{
-		if (keycode == VK_F11) {
-			toggle_full_screen();
+		auto iter = other_windows_.find(browser_id);
+
+		if (iter != other_windows_.end()) {
+			delete iter->second;
+			other_windows_.erase(iter);
 		}
-		else if (keycode == L'R' && ::GetKeyState(VK_CONTROL) < 0) {
-			primary_browser_->Reload();
-		}
-	}
-
-	void on_key_up(unsigned int keycode)
-	{
-	}
-
-	void on_get_focus(HWND hwnd)
-	{
-		::SetFocus(hwnd_browser_);
-	}
-
-	void on_lost_focus(HWND hwnd)
-	{
 	}
 
 #pragma endregion
