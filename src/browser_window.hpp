@@ -81,6 +81,19 @@ class browser_window :
 			accessor (setter),
 			default ([](...) {}));
 
+		button()
+		{
+			get_font().use_custom_renderer(false);
+			get_font().set_weight(quote::direct2d::font_weight::light);
+			set_text_size(15.0f);
+			set_color(button::state::none, { 250, 250, 250 });
+			set_color(button::state::hover, { 255, 255, 255 });
+			set_color(button::state::push, { 200, 200, 200 });
+			set_text_color(button::state::none, { 128, 128, 128 });
+			set_text_color(button::state::hover, { 200, 200, 200 });
+			set_text_color(button::state::push, { 255, 255, 255, 150 });
+		}
+
 		void on_push() override
 		{
 			callback_();
@@ -93,7 +106,7 @@ class browser_window :
 		}
 	};
 
-	button back_button_, forward_button_;
+	button back_button_, forward_button_, overview_button_;
 
 public:
 	QUOTE_DEFINE_SIMPLE_PROPERTY(
@@ -188,18 +201,8 @@ public:
 	virtual bool initialize()
 	{
 		this->register_object(&back_button_);
-		back_button_.get_font().use_custom_renderer(false);
-		back_button_.get_font().set_name(L"Meiryo");
-		back_button_.get_font().set_weight(quote::direct2d::font_weight::light);
 		back_button_.set_text(L"Back");
-		back_button_.set_text_size(15.0f);
 		back_button_.set_size({ 110.0f, 40.0f });
-		back_button_.set_color(button::state::none, { 250, 250, 250 });
-		back_button_.set_color(button::state::hover, { 255, 255, 255 });
-		back_button_.set_color(button::state::push, { 200, 200, 200 });
-		back_button_.set_text_color(button::state::none, { 128, 128, 128 });
-		back_button_.set_text_color(button::state::hover, { 200, 200, 200 });
-		back_button_.set_text_color(button::state::push, { 255, 255, 255, 150 });
 		back_button_.callback([&]() {
 			if (browser_ != nullptr) {
 				browser_->GoBack();
@@ -210,24 +213,30 @@ public:
 		});
 
 		this->register_object(&forward_button_);
-		forward_button_.get_font().use_custom_renderer(false);
-		forward_button_.get_font().set_weight(quote::direct2d::font_weight::light);
 		forward_button_.set_text(L"Forward");
-		forward_button_.set_text_size(15.0f);
 		forward_button_.set_size({ 110.0f, 40.0f });
 		forward_button_.set_position({ 110.0f, 0.0f });
-		forward_button_.set_color(button::state::none, { 250, 250, 250 });
-		forward_button_.set_color(button::state::hover, { 255, 255, 255 });
-		forward_button_.set_color(button::state::push, { 200, 200, 200 });
-		forward_button_.set_text_color(button::state::none, { 128, 128, 128 });
-		forward_button_.set_text_color(button::state::hover, { 200, 200, 200 });
-		forward_button_.set_text_color(button::state::push, { 255, 255, 255, 150 });
 		forward_button_.callback([&]() {
 			if (browser_ != nullptr) {
 				browser_->GoForward();
 			}
 		});
 		forward_button_.state_changed([&](button::state s) {
+			this->repaint();
+		});
+
+		this->register_object(&overview_button_);
+		overview_button_.set_text(L"Overview");
+		overview_button_.set_size({ 110.0f, 40.0f });
+		overview_button_.set_position({ 220.0f, 0.0f });
+		overview_button_.callback([&]() {
+			if (browser_ != nullptr) {
+				CefKeyEvent event;
+				event.windows_key_code = L'O';
+				browser_->GetHost()->SendKeyEvent(event);
+			}
+		});
+		overview_button_.state_changed([&](button::state s) {
 			this->repaint();
 		});
 
@@ -238,6 +247,7 @@ public:
 	{
 		this->unregister_object(&back_button_);
 		this->unregister_object(&forward_button_);
+		this->unregister_object(&overview_button_);
 
 		if (!is_primary_window_) {
 			::SetWindowLongPtrW(this->get_hwnd(), 0, 0);
