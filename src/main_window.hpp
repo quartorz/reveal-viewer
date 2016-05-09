@@ -33,6 +33,7 @@ class main_window : public browser_window
 		PRINT_TO_PDF,
 		COPY_URL,
 		OPEN_LINK,
+		OPEN_LINK_IN_NEW_WINDOW,
 		TOGGLE_NAVIGATE
 	};
 
@@ -149,6 +150,7 @@ public:
 
 			if ((params->GetTypeFlags() & CM_TYPEFLAG_LINK) != 0) {
 				model->AddItem(static_cast<int>(menu_command::OPEN_LINK), L"&Open Link");
+				model->AddItem(static_cast<int>(menu_command::OPEN_LINK_IN_NEW_WINDOW), L"Open Link in New &Window");
 			}
 
 			model->AddItem(static_cast<int>(menu_command::COPY_URL), L"&Copy URL");
@@ -198,6 +200,20 @@ public:
 			} else if (id == menu_command::OPEN_LINK) {
 				auto url = params->GetLinkUrl();
 				::ShellExecuteW(window->get_hwnd(), L"open", url.c_str(), nullptr, nullptr, SW_SHOW);
+				return true;
+			} else if (id == menu_command::OPEN_LINK_IN_NEW_WINDOW) {
+				CefWindowInfo window_info;
+				window_info.SetAsPopup(window->get_hwnd(), L"");
+
+				CefBrowserSettings settings;
+
+				auto url = params->GetLinkUrl();
+				browser->GetHost()->CreateBrowser(
+					window_info,
+					browser_handler_.get(),
+					url,
+					settings,
+					nullptr);
 				return true;
 			} else if (id == menu_command::TOGGLE_NAVIGATE) {
 				window->toggle_navigate_buttons();
