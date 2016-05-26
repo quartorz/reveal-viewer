@@ -95,6 +95,8 @@ namespace msr {
 			return "application/x-font-woff";
 		} else if (ext == ".pdf") {
 			return "application/pdf";
+		} else if (ext == ".svg") {
+			return "image/svg+xml";
 		}
 
 		// unknown or not implemented
