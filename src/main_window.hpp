@@ -248,6 +248,10 @@ public:
 				return true;
 			}
 
+			RECT rc;
+
+			::GetClientRect(hwnd, &rc);
+
 			auto style = ::GetWindowLongPtrW(hwnd, GWL_STYLE);
 
 			style &= ~WS_OVERLAPPEDWINDOW;
@@ -260,6 +264,7 @@ public:
 			window->hwnd_browser(hwnd);
 			window->browser(browser);
 			window->hwnd_primary(this->get_hwnd());
+			window->set_size(rc.right - rc.left, rc.bottom - rc.top);
 			window->show();
 
 			other_windows_.insert({ browser->GetIdentifier(), window });
