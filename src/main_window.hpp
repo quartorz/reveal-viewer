@@ -303,6 +303,18 @@ public:
 	// ウィンドウの閉じ方についてはCefLifeSpanHandler::DoClose()のドキュメントを参照
 	bool on_close() override
 	{
+		if (!browser_handler_->IsPrimaryBrowserClosing()) {
+			auto status = ::MessageBoxW(
+				this->get_hwnd(),
+				L"プログラムを終了しますか？",
+				L"確認",
+				MB_YESNO);
+
+			if (status == IDNO) {
+				return false;
+			}
+		}
+
 		for (auto &w : other_windows_) {
 			::DestroyWindow(w.second->get_hwnd());
 		}
