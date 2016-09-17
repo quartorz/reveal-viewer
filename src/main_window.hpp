@@ -98,6 +98,14 @@ public:
 
 			CefBrowserSettings settings;
 
+			CefString sans_serif, serif;
+
+			sans_serif.Attach(&settings.sans_serif_font_family, false);
+			serif.Attach(&settings.serif_font_family, false);
+
+			sans_serif = "MS Gothic";
+			serif = "MS Mincho";
+
 			browser_ = CefBrowserHost::CreateBrowserSync(
 				window_info, browser_handler_.get(), L"http://localhost:" + std::to_wstring(port),
 				settings, nullptr);
