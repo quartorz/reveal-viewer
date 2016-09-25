@@ -6,6 +6,7 @@
 
 #include <quote/cef/browser_handler.hpp>
 #include <quote/cef/print_to_pdf.hpp>
+#include <quote/cef/make_string_visitor.hpp>
 
 #include <thread>
 #include <unordered_map>
@@ -30,11 +31,18 @@ class main_window : public browser_window
 
 	// menu command IDs
 	enum class menu_command : int {
+		COPY,
+		CUT,
+		PASTE,
+		GO_BACK,
+		GO_FORWARD,
+		RELOAD,
 		PRINT_TO_PDF,
+		SAVE_PAGE,
 		COPY_URL,
 		OPEN_LINK,
 		OPEN_LINK_IN_NEW_WINDOW,
-		TOGGLE_NAVIGATE
+		TOGGLE_NAVIGATE,
 	};
 
 public:
@@ -98,13 +106,17 @@ public:
 
 			CefBrowserSettings settings;
 
-			CefString sans_serif, serif;
+			CefString standard, sans_serif, serif, fixed;
 
+			standard.Attach(&settings.standard_font_family, false);
 			sans_serif.Attach(&settings.sans_serif_font_family, false);
 			serif.Attach(&settings.serif_font_family, false);
+			fixed.Attach(&settings.fixed_font_family, false);
 
+			standard = "MS Gothic";
 			sans_serif = "MS Gothic";
 			serif = "MS Mincho";
+			fixed = "MS P Gothic";
 
 			browser_ = CefBrowserHost::CreateBrowserSync(
 				window_info, browser_handler_.get(), L"http://localhost:" + std::to_wstring(port),
@@ -156,15 +168,43 @@ public:
 		{
 			model->Clear();
 
+			if ((params->GetTypeFlags() & CM_TYPEFLAG_SELECTION) != 0) {
+				model->AddItem(static_cast<int>(menu_command::COPY), L"&Copy");
+
+				if ((params->GetTypeFlags() & CM_TYPEFLAG_EDITABLE) != 0) {
+					model->AddItem(static_cast<int>(menu_command::CUT), L"Cu&t");
+					model->AddItem(static_cast<int>(menu_command::PASTE), L"&Paste");
+				}
+
+				model->AddSeparator();
+			} else if ((params->GetTypeFlags() & CM_TYPEFLAG_EDITABLE) != 0) {
+				model->AddItem(static_cast<int>(menu_command::PASTE), L"&Paste");
+				model->AddSeparator();
+			}
+
+			model->AddItem(static_cast<int>(menu_command::GO_BACK), L"Go &Back");
+			model->AddItem(static_cast<int>(menu_command::GO_FORWARD), L"Go &Forward");
+			model->AddItem(static_cast<int>(menu_command::RELOAD), L"&Reload");
+
 			if ((params->GetTypeFlags() & CM_TYPEFLAG_LINK) != 0) {
+				model->AddSeparator();
 				model->AddItem(static_cast<int>(menu_command::OPEN_LINK), L"&Open Link");
 				model->AddItem(static_cast<int>(menu_command::OPEN_LINK_IN_NEW_WINDOW), L"Open Link in New &Window");
 			}
 
-			model->AddItem(static_cast<int>(menu_command::COPY_URL), L"&Copy URL");
+			model->AddItem(static_cast<int>(menu_command::COPY_URL), L"Copy &URL");
 			model->AddSeparator();
 			model->AddItem(static_cast<int>(menu_command::PRINT_TO_PDF), L"&Print to PDF");
-			model->AddItem(static_cast<int>(menu_command::TOGGLE_NAVIGATE), L"&Show Navigate Buttons");
+			model->AddItem(static_cast<int>(menu_command::SAVE_PAGE), L"&Save Page");
+			model->AddItem(static_cast<int>(menu_command::TOGGLE_NAVIGATE), L"&Toggle Navigate Buttons");
+
+			if (!browser->CanGoBack()) {
+				model->SetEnabled(static_cast<int>(menu_command::GO_BACK), false);
+			}
+
+			if (!browser->CanGoForward()) {
+				model->SetEnabled(static_cast<int>(menu_command::GO_FORWARD), false);
+			}
 		});
 
 		browser_handler_->on_context_menu_command([&](
@@ -182,7 +222,19 @@ public:
 				return false;
 			}
 
-			if (id == menu_command::PRINT_TO_PDF) {
+			if (id == menu_command::COPY) {
+				frame->Copy();
+			} else if (id == menu_command::CUT) {
+				frame->Cut();
+			} else if (id == menu_command::PASTE) {
+				frame->Paste();
+			} else if (id == menu_command::GO_BACK) {
+				browser->GoBack();
+			} else if (id == menu_command::GO_FORWARD) {
+				browser->GoForward();
+			} else if (id == menu_command::RELOAD) {
+				browser->Reload();
+			} else if (id == menu_command::PRINT_TO_PDF) {
 				CefWindowInfo window_info;
 				window_info.SetAsPopup(window->get_hwnd(), L"PDF");
 
@@ -198,6 +250,12 @@ public:
 					nullptr);
 
 				return true;
+			} else if (id == menu_command::SAVE_PAGE) {
+				auto frame = browser->GetMainFrame();
+
+				frame->GetSource(quote::cef::make_string_visitor([&](const CefString &s) {
+					MessageBoxW(get_hwnd(), s.c_str(), L"", 0);
+				}));
 			} else if (id == menu_command::COPY_URL) {
 				if ((params->GetTypeFlags() & CM_TYPEFLAG_LINK) != 0) {
 					::copy_to_clipboard(window->get_hwnd(), params->GetLinkUrl());
