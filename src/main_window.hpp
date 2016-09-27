@@ -205,6 +205,8 @@ public:
 			if (!browser->CanGoForward()) {
 				model->SetEnabled(static_cast<int>(menu_command::GO_FORWARD), false);
 			}
+
+			model->SetEnabled(menu_command::SAVE_PAGE, false);
 		});
 
 		browser_handler_->on_context_menu_command([&](
@@ -251,11 +253,11 @@ public:
 
 				return true;
 			} else if (id == menu_command::SAVE_PAGE) {
-				auto frame = browser->GetMainFrame();
+				/*auto frame = browser->GetMainFrame();
 
 				frame->GetSource(quote::cef::make_string_visitor([&](const CefString &s) {
 					MessageBoxW(get_hwnd(), s.c_str(), L"", 0);
-				}));
+				}));*/
 			} else if (id == menu_command::COPY_URL) {
 				if ((params->GetTypeFlags() & CM_TYPEFLAG_LINK) != 0) {
 					::copy_to_clipboard(window->get_hwnd(), params->GetLinkUrl());
