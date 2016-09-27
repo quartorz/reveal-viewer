@@ -11,6 +11,9 @@
 #include <thread>
 #include <unordered_map>
 
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
+
 #include "include/wrapper/cef_closure_task.h"
 
 #include "msr.hpp"
@@ -99,11 +102,29 @@ public:
 		}
 
 		try {
-			wchar_t exe_path[MAX_PATH];
+			wchar_t exe_name[MAX_PATH];
 
-			::GetModuleFileNameW(nullptr, exe_path, MAX_PATH);
+			::GetModuleFileNameW(nullptr, exe_name, MAX_PATH);
 
-			auto server_root = boost::filesystem::path(exe_path).remove_filename() / "slide";
+			auto exe_dir = boost::filesystem::path(exe_name).remove_filename();
+			auto server_root = exe_dir / "slide";
+			auto config_file = exe_dir / "config.ini";
+
+			if (exists(config_file)) {
+				std::wifstream ifs(config_file.wstring());
+
+				if (ifs) {
+					boost::property_tree::wptree tree;
+					read_ini(ifs, tree);
+
+					auto v = tree.get_optional<std::wstring>(L"Server.DocumentRoot");
+
+					if (v) {
+						server_root = canonical(*v, exe_dir);
+						MessageBoxW(0, server_root.c_str(), L"", 0);
+					}
+				}
+			}
 
 			if (!server_.start(server_root.string()))
 				return false;
