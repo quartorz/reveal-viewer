@@ -17,6 +17,7 @@ class browser_handler :
 	public CefClient,
 	public CefContextMenuHandler,
 	public CefDisplayHandler,
+	public CefDownloadHandler,
 	public CefLifeSpanHandler,
 	public CefLoadHandler,
 	public CefKeyboardHandler,
@@ -45,6 +46,11 @@ public:
 	}
 
 	CefRefPtr<CefDisplayHandler> GetDisplayHandler() override
+	{
+		return this;
+	}
+
+	CefRefPtr<CefDownloadHandler> GetDownloadHandler() override
 	{
 		return this;
 	}
@@ -202,6 +208,25 @@ public:
 				::SetWindowTextW(hwnd, title.c_str());
 			}
 		}
+	}
+
+	// CefDownloadHandler
+	void OnBeforeDownload(
+		CefRefPtr<CefBrowser> browser,
+		CefRefPtr<CefDownloadItem> download_item,
+		const CefString &suggested_name,
+		CefRefPtr<CefBeforeDownloadCallback> callback
+		) override
+	{
+		callback->Continue(L"", true);
+	}
+
+	void OnDownloadUpdated(
+		CefRefPtr<CefBrowser> browser,
+		CefRefPtr<CefDownloadItem> download_item,
+		CefRefPtr<CefDownloadItemCallback> callback
+		) override
+	{
 	}
 
 	// CefLifeSpanHandler
