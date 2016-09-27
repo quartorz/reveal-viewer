@@ -43,7 +43,24 @@ class main_window : public browser_window
 		OPEN_LINK,
 		OPEN_LINK_IN_NEW_WINDOW,
 		TOGGLE_NAVIGATE,
+		ZOOM_IN,
+		ZOOM_OUT,
 	};
+
+	static void set_font_families(CefBrowserSettings &settings)
+	{
+		CefString standard, sans_serif, serif, fixed;
+
+		standard.Attach(&settings.standard_font_family, false);
+		sans_serif.Attach(&settings.sans_serif_font_family, false);
+		serif.Attach(&settings.serif_font_family, false);
+		fixed.Attach(&settings.fixed_font_family, false);
+
+		standard = "MS Gothic";
+		sans_serif = "MS Gothic";
+		serif = "MS Mincho";
+		fixed = "MS P Gothic";
+	}
 
 public:
 	static const wchar_t *get_class_name()
@@ -106,17 +123,7 @@ public:
 
 			CefBrowserSettings settings;
 
-			CefString standard, sans_serif, serif, fixed;
-
-			standard.Attach(&settings.standard_font_family, false);
-			sans_serif.Attach(&settings.sans_serif_font_family, false);
-			serif.Attach(&settings.serif_font_family, false);
-			fixed.Attach(&settings.fixed_font_family, false);
-
-			standard = "MS Gothic";
-			sans_serif = "MS Gothic";
-			serif = "MS Mincho";
-			fixed = "MS P Gothic";
+			set_font_families(settings);
 
 			browser_ = CefBrowserHost::CreateBrowserSync(
 				window_info, browser_handler_.get(), L"http://localhost:" + std::to_wstring(port),
@@ -193,10 +200,17 @@ public:
 			}
 
 			model->AddItem(static_cast<int>(menu_command::COPY_URL), L"Copy &URL");
+
 			model->AddSeparator();
+
 			model->AddItem(static_cast<int>(menu_command::PRINT_TO_PDF), L"&Print to PDF");
 			model->AddItem(static_cast<int>(menu_command::SAVE_PAGE), L"&Save Page");
 			model->AddItem(static_cast<int>(menu_command::TOGGLE_NAVIGATE), L"&Toggle Navigate Buttons");
+
+			model->AddSeparator();
+
+			model->AddItem(static_cast<int>(menu_command::ZOOM_IN), L"Zoom &In\t(Ctrl + ;)");
+			model->AddItem(static_cast<int>(menu_command::ZOOM_OUT), L"Zoom O&ut\t(Ctrl + -)");
 
 			if (!browser->CanGoBack()) {
 				model->SetEnabled(static_cast<int>(menu_command::GO_BACK), false);
@@ -275,6 +289,8 @@ public:
 
 				CefBrowserSettings settings;
 
+				set_font_families(settings);
+
 				auto url = params->GetLinkUrl();
 				browser->GetHost()->CreateBrowser(
 					window_info,
@@ -288,6 +304,41 @@ public:
 			}
 
 			return false;
+		});
+
+		browser_handler_->on_load_end([&](
+			CefRefPtr<CefBrowser> browser,
+			CefRefPtr<CefFrame> frame,
+			int httpStatusCode
+			)
+		{
+			if (browser == browser_) {
+				this->on_load_end();
+			} else {
+				auto w = find_window(browser);
+
+				if (w != nullptr) {
+					w->on_load_end();
+				}
+			}
+		});
+
+		browser_handler_->on_title_change([&](
+			CefRefPtr<CefBrowser> browser,
+			const CefString &title
+			)
+		{
+			if (browser == browser_) {
+				this->on_document_title_change(title.ToWString());
+			} else {
+				auto w = find_window(browser);
+
+				if (w != nullptr) {
+					w->on_document_title_change(title.ToWString());
+				}
+			}
+
+			return true;
 		});
 
 		browser_handler_->on_key_event([&](
@@ -304,6 +355,24 @@ public:
 				}
 			}
 
+			return false;
+		});
+
+		browser_handler_->on_before_popup([&](
+			CefRefPtr<CefBrowser> browser,
+			CefRefPtr<CefFrame> frame,
+			const CefString& target_url,
+			const CefString& target_frame_name,
+			CefLifeSpanHandler::WindowOpenDisposition target_disposition,
+			bool user_gesture,
+			const CefPopupFeatures& popupFeatures,
+			CefWindowInfo& windowInfo,
+			CefRefPtr<CefClient>& client,
+			CefBrowserSettings& settings,
+			bool* no_javascript_access
+			)
+		{
+			set_font_families(settings);
 			return false;
 		});
 

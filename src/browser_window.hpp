@@ -12,6 +12,7 @@
 
 #include <quote/cef/browser_handler.hpp>
 #include <quote/cef/print_to_pdf.hpp>
+#include <quote/cef/make_dom_visitor.hpp>
 
 #include <quote/macro.hpp>
 
@@ -68,6 +69,8 @@ class browser_window :
 	bool is_closing_ = false;
 
 	bool show_navigate_buttons_ = false;
+
+	std::wstring document_title_;
 
 	struct button : quote::direct2d::flat_button {
 		QUOTE_DEFINE_SIMPLE_PROPERTY(
@@ -167,9 +170,9 @@ public:
 
 			::SetWindowPos(
 				hwnd, nullptr,
-				mi.rcMonitor.left, mi.rcMonitor.top,
-				mi.rcMonitor.right - mi.rcMonitor.left,
-				mi.rcMonitor.bottom - mi.rcMonitor.top,
+				mi.rcMonitor.left - 1, mi.rcMonitor.top - 1,
+				mi.rcMonitor.right - mi.rcMonitor.left + 2 ,
+				mi.rcMonitor.bottom - mi.rcMonitor.top + 2,
 				SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 		}
 
@@ -190,10 +193,62 @@ public:
 		}
 	}
 
+	void set_zoom(double percent)
+	{
+		percent = std::min(std::max(0.2, percent), 5.0);
+
+		auto level = std::log(percent) / std::log(1.2);
+
+		browser_->GetHost()->SetZoomLevel(level);
+
+		change_title();
+	}
+
+	void zoom_in()
+	{
+		double level = browser_->GetHost()->GetZoomLevel();
+		set_zoom(std::pow(1.2, level) + 0.1);
+	}
+
+	void zoom_out()
+	{
+		double level = browser_->GetHost()->GetZoomLevel();
+		set_zoom(std::pow(1.2, level) - 0.1);
+	}
+
+	void set_title(const wchar_t *title) = delete;
+	void set_title(const std::wstring &title) = delete;
+
+	void change_title()
+	{
+		std::wstring t = document_title_;
+
+		auto zoom = browser_->GetHost()->GetZoomLevel();
+		auto percent = std::pow(1.2, zoom);
+
+		if (zoom != 0.0) {
+			t += L" (x" + std::to_wstring(percent) + L")";
+		}
+
+		auto hwnd = this->get_hwnd();
+
+		::SetWindowTextW(hwnd, t.c_str());
+	}
+
 	void draw(const quote::direct2d::paint_params &pp)
 	{
 		pp.clear({ 255, 255, 255 });
 		quote_manager::draw(pp);
+	}
+
+	void on_load_end()
+	{
+	}
+
+	void on_document_title_change(const std::wstring &t)
+	{
+		document_title_ = t;
+		change_title();
 	}
 
 #pragma region quote window initializer and uninitializer
@@ -305,9 +360,9 @@ public:
 		} else if (keycode == L'R' && ::GetKeyState(VK_CONTROL) < 0) {
 			browser_->Reload();
 		} else if (keycode == VK_OEM_PLUS && ::GetKeyState(VK_CONTROL) < 0) {
-			browser_->GetHost()->SetZoomLevel(browser_->GetHost()->GetZoomLevel() + 0.125);
+			zoom_in();
 		} else if (keycode == VK_OEM_MINUS && ::GetKeyState(VK_CONTROL) < 0) {
-			browser_->GetHost()->SetZoomLevel(browser_->GetHost()->GetZoomLevel() - 0.125);
+			zoom_out();
 		}
 	}
 

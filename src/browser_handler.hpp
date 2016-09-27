@@ -333,6 +333,24 @@ public:
 	// CefLoadHandler
 	QUOTE_DEFINE_SIMPLE_PROPERTY(
 		std::function<
+			void(
+				CefRefPtr<CefBrowser> browser,
+				CefRefPtr<CefFrame> frame,
+				int httpStatusCode)>,
+		on_load_end,
+		accessor(setter),
+		default ([](...) {}));
+	void OnLoadEnd(
+		CefRefPtr<CefBrowser> browser,
+		CefRefPtr<CefFrame> frame,
+		int httpStatusCode
+		) override
+	{
+		on_load_end_(browser, frame, httpStatusCode);
+	}
+
+	QUOTE_DEFINE_SIMPLE_PROPERTY(
+		std::function<
 			bool(
 				CefRefPtr<CefBrowser> browser,
 				CefRefPtr<CefFrame> frame,
