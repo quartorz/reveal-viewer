@@ -304,6 +304,10 @@ public:
 			toggle_full_screen();
 		} else if (keycode == L'R' && ::GetKeyState(VK_CONTROL) < 0) {
 			browser_->Reload();
+		} else if (keycode == VK_OEM_PLUS && ::GetKeyState(VK_CONTROL) < 0) {
+			browser_->GetHost()->SetZoomLevel(browser_->GetHost()->GetZoomLevel() + 0.125);
+		} else if (keycode == VK_OEM_MINUS && ::GetKeyState(VK_CONTROL) < 0) {
+			browser_->GetHost()->SetZoomLevel(browser_->GetHost()->GetZoomLevel() - 0.125);
 		}
 	}
 
