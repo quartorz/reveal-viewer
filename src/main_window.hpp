@@ -206,7 +206,7 @@ public:
 				model->SetEnabled(static_cast<int>(menu_command::GO_FORWARD), false);
 			}
 
-			model->SetEnabled(menu_command::SAVE_PAGE, false);
+			model->SetEnabled(static_cast<int>(menu_command::SAVE_PAGE), false);
 		});
 
 		browser_handler_->on_context_menu_command([&](
