@@ -198,10 +198,10 @@ public:
 		percent = std::min(std::max(0.2, percent), 5.0);
 
 		auto level = std::log(percent) / std::log(1.2);
+		auto host = browser_->GetHost();
 
-		browser_->GetHost()->SetZoomLevel(level);
-
-		change_title();
+		host->SetZoomLevel(level);
+		host->GetClient()->OnProcessMessageReceived(browser_, PID_BROWSER, CefProcessMessage::Create(L"RevealViewer.ZoomLevelChanged"));
 	}
 
 	void zoom_in()

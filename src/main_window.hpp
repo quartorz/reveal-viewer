@@ -121,7 +121,6 @@ public:
 
 					if (v) {
 						server_root = canonical(*v, exe_dir);
-						MessageBoxW(0, server_root.c_str(), L"", 0);
 					}
 				}
 			}
@@ -161,13 +160,15 @@ public:
 
 		// set browser handler callbacks
 
-		browser_handler_->on_process_message_received([](
+		browser_handler_->on_process_message_received([&](
 			CefRefPtr<CefBrowser> browser,
 			CefProcessId source_process,
 			CefRefPtr<CefProcessMessage> message
 			)
 		{
-			if (message->GetName() == L"RevealViewer.PrintToPdf") {
+			auto name = message->GetName();
+
+			if (name == L"RevealViewer.PrintToPdf") {
 				quote::cef::print_to_pdf(
 					browser,
 					[](CefRefPtr<CefBrowser> browser, const CefString& path, bool ok) {
@@ -182,6 +183,12 @@ public:
 						auto frame = browser->GetMainFrame();
 						frame->ExecuteJavaScript(L"window.close();", frame->GetURL(), 0);
 					});
+			} else if (name == L"RevealViewer.ZoomLevelChanged") {
+				this->change_title();
+
+				for (auto &w : other_windows_) {
+					w.second->change_title();
+				}
 			}
 
 			return false;
@@ -259,19 +266,33 @@ public:
 				return false;
 			}
 
-			if (id == menu_command::COPY) {
+			switch (id) {
+			case menu_command::COPY:
 				frame->Copy();
-			} else if (id == menu_command::CUT) {
+				return true;
+
+			case menu_command::CUT:
 				frame->Cut();
-			} else if (id == menu_command::PASTE) {
+				return true;
+
+			case menu_command::PASTE:
 				frame->Paste();
-			} else if (id == menu_command::GO_BACK) {
+				return true;
+
+			case menu_command::GO_BACK:
 				browser->GoBack();
-			} else if (id == menu_command::GO_FORWARD) {
+				return true;
+
+			case menu_command::GO_FORWARD:
 				browser->GoForward();
-			} else if (id == menu_command::RELOAD) {
+				return true;
+
+			case menu_command::RELOAD:
 				browser->Reload();
-			} else if (id == menu_command::PRINT_TO_PDF) {
+				return true;
+
+			case menu_command::PRINT_TO_PDF:
+			{
 				CefWindowInfo window_info;
 				window_info.SetAsPopup(window->get_hwnd(), L"PDF");
 
@@ -287,24 +308,33 @@ public:
 					nullptr);
 
 				return true;
-			} else if (id == menu_command::SAVE_PAGE) {
+			}
+
+			case menu_command::SAVE_PAGE:
 				/*auto frame = browser->GetMainFrame();
 
 				frame->GetSource(quote::cef::make_string_visitor([&](const CefString &s) {
 					MessageBoxW(get_hwnd(), s.c_str(), L"", 0);
 				}));*/
-			} else if (id == menu_command::COPY_URL) {
+				return true;
+
+			case menu_command::COPY_URL:
 				if ((params->GetTypeFlags() & CM_TYPEFLAG_LINK) != 0) {
 					::copy_to_clipboard(window->get_hwnd(), params->GetLinkUrl());
 				} else {
 					::copy_to_clipboard(window->get_hwnd(), params->GetPageUrl());
 				}
 				return true;
-			} else if (id == menu_command::OPEN_LINK) {
+
+			case menu_command::OPEN_LINK:
+			{
 				auto url = params->GetLinkUrl();
 				::ShellExecuteW(window->get_hwnd(), L"open", url.c_str(), nullptr, nullptr, SW_SHOW);
 				return true;
-			} else if (id == menu_command::OPEN_LINK_IN_NEW_WINDOW) {
+			}
+
+			case menu_command::OPEN_LINK_IN_NEW_WINDOW:
+			{
 				CefWindowInfo window_info;
 				window_info.SetAsPopup(window->get_hwnd(), L"");
 
@@ -320,8 +350,19 @@ public:
 					settings,
 					nullptr);
 				return true;
-			} else if (id == menu_command::TOGGLE_NAVIGATE) {
+			}
+
+			case menu_command::TOGGLE_NAVIGATE:
 				window->toggle_navigate_buttons();
+				return true;
+
+			case menu_command::ZOOM_IN:
+				window->zoom_in();
+				return true;
+
+			case menu_command::ZOOM_OUT:
+				window->zoom_out();
+				return true;
 			}
 
 			return false;
