@@ -33,7 +33,12 @@ public:
 			L"printToPdf",
 			function,
 			V8_PROPERTY_ATTRIBUTE_NONE);
+
+		function = CefV8Value::CreateFunction(L"printToPdfFinished", handler);
+
+		context->GetGlobal()->SetValue(
+			L"printToPdfFinished",
+			function,
+			V8_PROPERTY_ATTRIBUTE_NONE);
 	}
-
-
 };

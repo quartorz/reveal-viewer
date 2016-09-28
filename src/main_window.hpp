@@ -176,13 +176,22 @@ public:
 							+ (ok ? L"\" saved successfully." : L"\" failed to save.");
 						auto frame = browser->GetMainFrame();
 
-						frame->ExecuteJavaScript(L"alert('" + message + +L"'); window.close();", frame->GetURL(), 0);
+						frame->ExecuteJavaScript(L"alert('" + message + +L"'); printToPdfFinished();", frame->GetURL(), 0);
 					},
 					true,
-					[](CefRefPtr<CefBrowser> browser) {
-						auto frame = browser->GetMainFrame();
-						frame->ExecuteJavaScript(L"window.close();", frame->GetURL(), 0);
+					[&](CefRefPtr<CefBrowser> browser) {
+						auto w = find_window(browser);
+
+						if (w != nullptr) {
+							w->destroy();
+						}
 					});
+			} else if (name == L"RevealViewer.CloseWindow") {
+				auto w = find_window(browser);
+
+				if (w != nullptr) {
+					w->destroy();
+				}
 			} else if (name == L"RevealViewer.ZoomLevelChanged") {
 				this->change_title();
 
@@ -374,14 +383,10 @@ public:
 			int httpStatusCode
 			)
 		{
-			if (browser == browser_) {
-				this->on_load_end();
-			} else {
-				auto w = find_window(browser);
+			auto w = find_window(browser);
 
-				if (w != nullptr) {
-					w->on_load_end();
-				}
+			if (w != nullptr) {
+				w->on_load_end();
 			}
 		});
 
@@ -390,14 +395,10 @@ public:
 			const CefString &title
 			)
 		{
-			if (browser == browser_) {
-				this->on_document_title_change(title.ToWString());
-			} else {
-				auto w = find_window(browser);
+			auto w = find_window(browser);
 
-				if (w != nullptr) {
-					w->on_document_title_change(title.ToWString());
-				}
+			if (w != nullptr) {
+				w->on_document_title_change(title.ToWString());
 			}
 
 			return true;

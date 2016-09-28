@@ -26,9 +26,11 @@ public:
 		CefString& exception
 	) override
 	{
-		if (name == "printToPdf") {
+		if (name == L"printToPdf") {
 			browser_->SendProcessMessage(PID_BROWSER, CefProcessMessage::Create(L"RevealViewer.PrintToPdf"));
-
+			return true;
+		} else if (name == L"printToPdfFinished") {
+			browser_->SendProcessMessage(PID_BROWSER, CefProcessMessage::Create(L"RevealViewer.CloseWindow"));
 			return true;
 		}
 
