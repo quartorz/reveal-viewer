@@ -204,8 +204,10 @@ namespace msr {
 
 							if (error.value() == boost::system::errc::success) {
 								if (boost::filesystem::is_directory(path)) {
+									error.assign(boost::system::errc::is_a_directory, boost::system::generic_category());
 									for (auto &f : { ".html", ".htm" }) {
 										if (boost::filesystem::exists((path / "index").replace_extension(f))) {
+											error.assign(boost::system::errc::success, boost::system::generic_category());
 											path = (path / "index").replace_extension(f);
 											break;
 										}
