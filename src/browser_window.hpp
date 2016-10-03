@@ -140,12 +140,14 @@ public:
 	void toggle_full_screen()
 	{
 		auto hwnd = this->get_hwnd();
+		auto htaskbar = ::FindWindowW(L"Shell_TrayWnd", nullptr);
 
 		if (is_full_screen_) {
 			window_style_ = (window_style_ & ~WS_POPUPWINDOW) | WS_OVERLAPPEDWINDOW;
 
 			::SetWindowLongPtrW(hwnd, GWL_STYLE, window_style_);
 
+			::ShowWindow(hwnd, SW_SHOWNORMAL);
 			::SetWindowPos(
 				hwnd,
 				nullptr,
@@ -154,6 +156,9 @@ public:
 				window_rect_.right - window_rect_.left,
 				window_rect_.bottom - window_rect_.top,
 				SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+
+			::SetWindowPos(htaskbar, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+			set_taskbar_zorder(HWND_TOPMOST);
 		} else {
 			::GetWindowRect(hwnd, &window_rect_);
 
@@ -162,18 +167,9 @@ public:
 
 			::SetWindowLongPtrW(hwnd, GWL_STYLE, window_style_);
 
-			auto hmonitor = ::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-			MONITORINFO mi;
-
-			mi.cbSize = sizeof(MONITORINFO);
-			::GetMonitorInfo(hmonitor, &mi);
-
-			::SetWindowPos(
-				hwnd, nullptr,
-				mi.rcMonitor.left - 1, mi.rcMonitor.top - 1,
-				mi.rcMonitor.right - mi.rcMonitor.left + 2 ,
-				mi.rcMonitor.bottom - mi.rcMonitor.top + 2,
-				SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+			::ShowWindow(hwnd, SW_MAXIMIZE);
+			::SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+			set_taskbar_zorder(hwnd);
 		}
 
 		is_full_screen_ = !is_full_screen_;
@@ -344,6 +340,10 @@ public:
 	// ウィンドウの閉じ方についてはCefLifeSpanHandler::DoClose()のドキュメントを参照
 	virtual bool on_close()
 	{
+		if (is_full_screen_) {
+			set_taskbar_zorder(HWND_TOPMOST);
+		}
+
 		if (browser_ != nullptr && !is_closing_) {
 			browser_->GetHost()->CloseBrowser(false);
 			is_closing_ = true;
@@ -373,10 +373,19 @@ public:
 	void on_get_focus(HWND hwnd)
 	{
 		::SetFocus(hwnd_browser_);
+
+		if (is_full_screen_) {
+			auto hwnd = this->get_hwnd();
+			::SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+			set_taskbar_zorder(hwnd);
+		}
 	}
 
 	void on_lost_focus(HWND hwnd)
 	{
+		if (is_full_screen_ && !::IsChild(this->get_hwnd(), hwnd)) {
+			set_taskbar_zorder(HWND_TOPMOST);
+		}
 	}
 
 	virtual void on_subwindow_close(int browser_id)

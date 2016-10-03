@@ -51,3 +51,9 @@ inline bool copy_to_clipboard(HWND howner, CefString const &s)
 
 	return ::CloseClipboard() == TRUE;
 }
+
+void set_taskbar_zorder(HWND after)
+{
+	auto htaskbar = ::FindWindowW(L"Shell_TrayWnd", nullptr);
+	::SetWindowPos(htaskbar, after, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+}
