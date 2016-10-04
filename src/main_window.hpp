@@ -101,8 +101,8 @@ public:
 			::GetModuleFileNameW(nullptr, exe_name, MAX_PATH);
 
 			auto exe_dir = boost::filesystem::path(exe_name).remove_filename();
-			auto server_root = exe_dir / "slide";
 			auto config_file = exe_dir / "config.ini";
+			boost::filesystem::path server_root;
 
 			if (exists(config_file)) {
 				std::wifstream ifs(config_file.wstring());
@@ -114,16 +114,18 @@ public:
 					auto v = tree.get_optional<std::wstring>(L"Server.DocumentRoot");
 
 					if (v) {
-						if (v->empty()) {
-							server_root = quote::win32::open_directory_dialog(
-								*this,
-								get_exe_path().remove_filename().c_str(),
-								L"Select document root directory");
-						} else {
+						if (!v->empty()) {
 							server_root = canonical(*v, exe_dir);
 						}
 					}
 				}
+			}
+
+			if(server_root.empty()){
+				server_root = quote::win32::open_directory_dialog(
+					*this,
+					get_exe_path().remove_filename().c_str(),
+					L"Select document root directory");
 			}
 
 			if (!server_.start(server_root.string()))
