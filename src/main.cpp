@@ -12,6 +12,12 @@
 #include "renderer_handler.hpp"
 #include "other_handler.hpp"
 
+#include <fstream>
+
+#include <boost/filesystem/path.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
+
 # pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 int run()
@@ -40,9 +46,39 @@ int run()
 	if (!main_window::register_class())
 		return 0;
 
+	CefSettings settings;
+
+	{
+		CefString resource_dir = &settings.resources_dir_path;
+
+		auto exe_dir = boost::filesystem::path(get_exe_path()).remove_filename();
+		auto ini_name = exe_dir / L"config.ini";
+
+		if (exists(ini_name)) {
+			std::wifstream ifs(ini_name.wstring());
+
+			if (ifs) {
+				boost::property_tree::wptree tree;
+				read_ini(ifs, tree);
+
+				auto v = tree.get_optional<std::wstring>(L"Exe.ResourceDir");
+
+				if (v) {
+					boost::system::error_code err;
+					resource_dir.FromWString(canonical(*v, exe_dir, err).wstring());
+				}
+			}
+		}
+
+		if (resource_dir.empty()) {
+			resource_dir.FromWString((exe_dir / L"resources").wstring());
+		}
+	}
+
 	return quote::cef::wrap(
 		app.get(),
 		sandbox_info,
+		settings,
 		[&]() {
 			main_window w(static_cast<browser_handler*>(app.get()));
 

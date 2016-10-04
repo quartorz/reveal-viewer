@@ -52,17 +52,10 @@ class main_window : public browser_window
 
 	static void set_font_families(CefBrowserSettings &settings)
 	{
-		CefString standard, sans_serif, serif, fixed;
-
-		standard.Attach(&settings.standard_font_family, false);
-		sans_serif.Attach(&settings.sans_serif_font_family, false);
-		serif.Attach(&settings.serif_font_family, false);
-		fixed.Attach(&settings.fixed_font_family, false);
-
-		standard = "MS Gothic";
-		sans_serif = "MS Gothic";
-		serif = "MS Mincho";
-		fixed = "MS P Gothic";
+		CefString(&settings.standard_font_family).FromString(L"MS Gothic", 9, true);
+		CefString(&settings.sans_serif_font_family).FromString(L"MS Gothic", 9, true);
+		CefString(&settings.serif_font_family).FromString(L"MS Mincho", 9, true);
+		CefString(&settings.fixed_font_family).FromString(L"MS P Gothic", 11, true);
 	}
 
 public:
@@ -154,7 +147,8 @@ public:
 			}
 
 			hwnd_browser_ = browser_->GetHost()->GetWindowHandle();
-		} catch (std::exception &) {
+		} catch (std::exception &e) {
+			::MessageBoxA(this->get_hwnd(), e.what(), "Error", MB_OK);
 			return false;
 		}
 
