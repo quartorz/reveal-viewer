@@ -111,11 +111,13 @@ namespace msr {
 		std::string buffer_;
 		request_data request_;
 		boost::xpressive::sregex regex_req_line_, regex_header_;
-		boost::filesystem::path root_;	enum class state {
+		boost::filesystem::path root_;
+		enum class state {
 			wait_for_request_line,
 			wait_for_headers,
 			reception_completed,
 		}state_;
+		std::string notfound_template_;
 
 		tcp_connection(boost::asio::io_service& io_service, const std::string &root)
 			: socket_(io_service)
@@ -188,7 +190,7 @@ namespace msr {
 					auto pbuf = sendbuf.get();
 
 					if (request_.invalid) {
-						status_line = "HTTP/1.0 400 Bad Request\r\n";
+						status_line = "HTTP/1.1 400 Bad Request\r\n";
 						headers += "Content-Length: 0\r\n\r\n";
 						pbuf->insert(pbuf->begin(), status_line.begin(), status_line.end());
 						pbuf->insert(pbuf->end() - 1, headers.begin(), headers.end());
@@ -200,13 +202,13 @@ namespace msr {
 							pbuf->insert(pbuf->end() - 1, headers.begin(), headers.end());
 						} else {
 							boost::system::error_code error;
-							auto path = boost::filesystem::canonical(boost::filesystem::absolute(root_ / request_.uri), error);
+							auto path =canonical(absolute(root_ / request_.uri), error);
 
 							if (error.value() == boost::system::errc::success) {
-								if (boost::filesystem::is_directory(path)) {
+								if (is_directory(path)) {
 									error.assign(boost::system::errc::is_a_directory, boost::system::generic_category());
 									for (auto &f : { ".html", ".htm" }) {
-										if (boost::filesystem::exists((path / "index").replace_extension(f))) {
+										if (exists((path / "index").replace_extension(f))) {
 											error.assign(boost::system::errc::success, boost::system::generic_category());
 											path = (path / "index").replace_extension(f);
 											break;
@@ -215,18 +217,22 @@ namespace msr {
 								}
 							}
 
-							if (error.value() != boost::system::errc::success || !boost::filesystem::exists(path)) {
-								status_line = "HTTP/1.0 404 Not Found\r\n";
-								headers += "Content-Length: 0\r\n\r\n";
+							if (error.value() != boost::system::errc::success || !exists(path)) {
+								std::string message = path.string() + " not found";
+
+								status_line = "HTTP/1.1 404 Not Found\r\n";
+								headers += "Content-Length: " + std::to_string(message.size()) + "\r\n\r\n";
+
 								pbuf->insert(pbuf->begin(), status_line.begin(), status_line.end());
 								pbuf->insert(pbuf->end() - 1, headers.begin(), headers.end());
+								pbuf->insert(pbuf->end() - 1, message.begin(), message.end());
 							} else {
-								auto last_modified = boost::posix_time::from_time_t(boost::filesystem::last_write_time(path));
+								auto last_modified = boost::posix_time::from_time_t(last_write_time(path));
 
-								status_line = "HTTP/1.0 200 OK\r\n";
+								status_line = "HTTP/1.1 200 OK\r\n";
 								headers += "Last-Modified: " + format_time(last_modified) + "\r\n";
 								headers += "Content-Type: " + content_type(path.extension().string()) + "\r\n";
-								headers += "Content-Length: " + std::to_string(boost::filesystem::file_size(path)) + "\r\n\r\n";
+								headers += "Content-Length: " + std::to_string(file_size(path)) + "\r\n\r\n";
 								pbuf->insert(pbuf->begin(), status_line.begin(), status_line.end());
 								pbuf->insert(pbuf->end() - 1, headers.begin(), headers.end());
 
