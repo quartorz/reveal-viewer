@@ -1,4 +1,5 @@
 #include <WinSock2.h>
+#include <objbase.h>
 
 #include <quote/quote.hpp>
 #include <quote/win32/message_loop.hpp>
@@ -80,6 +81,10 @@ int run()
 		sandbox_info,
 		settings,
 		[&]() {
+			if (FAILED(::CoInitialize(nullptr))) {
+				return 0;
+			}
+
 			main_window w(static_cast<browser_handler*>(app.get()));
 
 			if (!w.create(nullptr, L""))
@@ -92,6 +97,8 @@ int run()
 			);
 
 			app = nullptr;
+
+			::CoUninitialize();
 
 			return code;
 		}

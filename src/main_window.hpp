@@ -3,6 +3,7 @@
 #include <quote/win32/window.hpp>
 #include <quote/win32/creator.hpp>
 #include <quote/win32/procs.hpp>
+#include <quote/win32/dialogs.hpp>
 
 #include <quote/cef/browser_handler.hpp>
 #include <quote/cef/print_to_pdf.hpp>
@@ -113,7 +114,14 @@ public:
 					auto v = tree.get_optional<std::wstring>(L"Server.DocumentRoot");
 
 					if (v) {
-						server_root = canonical(*v, exe_dir);
+						if (v->empty()) {
+							server_root = quote::win32::open_directory_dialog(
+								*this,
+								get_exe_path().remove_filename().c_str(),
+								L"Select document root directory");
+						} else {
+							server_root = canonical(*v, exe_dir);
+						}
 					}
 				}
 			}

@@ -117,7 +117,6 @@ namespace msr {
 			wait_for_headers,
 			reception_completed,
 		}state_;
-		std::string notfound_template_;
 
 		tcp_connection(boost::asio::io_service& io_service, const std::string &root)
 			: socket_(io_service)
@@ -154,7 +153,7 @@ namespace msr {
 
 					boost::xpressive::smatch what;
 
-					if (boost::xpressive::regex_search(line, what, regex_req_line_)) {
+					if (regex_search(line, what, regex_req_line_)) {
 						if (what[1] != "GET") {
 							// not implemented
 							request_.method = what[1];
@@ -218,7 +217,13 @@ namespace msr {
 							}
 
 							if (error.value() != boost::system::errc::success || !exists(path)) {
-								std::string message = path.string() + " not found";
+								std::string message;
+
+								if (is_directory(path)) {
+									message = (path / L"index.html").string() + " not found";
+								} else {
+									message = path.string() + " not found";
+								}
 
 								status_line = "HTTP/1.1 404 Not Found\r\n";
 								headers += "Content-Length: " + std::to_string(message.size()) + "\r\n\r\n";
@@ -250,7 +255,7 @@ namespace msr {
 					// std::cout << "status line\n" << status_line << std::endl;
 					// std::cout << "headers\n" << headers << std::endl;
 
-					boost::asio::async_write(socket_, boost::asio::buffer(*sendbuf),
+					async_write(socket_, boost::asio::buffer(*sendbuf),
 						boost::bind(&tcp_connection::handle_write, shared_from_this(), sendbuf, len));
 
 					start_receive();
