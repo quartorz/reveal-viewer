@@ -115,7 +115,8 @@ public:
 
 					if (v) {
 						if (!v->empty()) {
-							server_root = canonical(*v, exe_dir);
+							boost::system::error_code ec;
+							server_root = canonical(*v, exe_dir, ec);
 						}
 					}
 				}
