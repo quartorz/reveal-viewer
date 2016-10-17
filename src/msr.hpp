@@ -222,7 +222,7 @@ namespace msr {
 								std::string message;
 
 								if (is_directory(path)) {
-									message = (path / L"index.html").string() + " not found";
+									message = (boost::filesystem::path(request_.uri) / L"index.html").string() + " not found";
 								} else {
 									message = path.string() + " not found";
 								}
@@ -349,8 +349,7 @@ namespace msr {
 			return acceptor_.local_endpoint().port();
 		}
 
-		const boost::filesystem::path &get_document_root() override
-		{
+		const boost::filesystem::path &get_document_root() override		{
 			return root_;
 		}
 	};
