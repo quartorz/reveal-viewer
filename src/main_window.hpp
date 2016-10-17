@@ -203,6 +203,15 @@ public:
 				for (auto &w : other_windows_) {
 					w.second->change_title();
 				}
+			} else if (name == L"RevealViewer.OpenFile") {
+				auto arg = message->GetArgumentList()->GetString(0);
+				boost::filesystem::path path = server_.get_document_root();
+				path /= arg.c_str();
+				boost::filesystem::path dir = path;
+				dir.remove_filename();
+				::ShellExecuteW(
+					this->get_hwnd(), L"open", path.c_str(), nullptr,
+					dir.c_str(), SW_SHOWDEFAULT);
 			}
 
 			return false;

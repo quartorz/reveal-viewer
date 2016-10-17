@@ -32,6 +32,11 @@ public:
 		} else if (name == L"printToPdfFinished") {
 			browser_->SendProcessMessage(PID_BROWSER, CefProcessMessage::Create(L"RevealViewer.CloseWindow"));
 			return true;
+		} else if (name == L"openFile") {
+			auto msg = CefProcessMessage::Create(L"RevealViewer.OpenFile");
+			msg->GetArgumentList()->SetString(0, arguments[0]->GetStringValue());
+			browser_->SendProcessMessage(PID_BROWSER, msg);
+			return true;
 		}
 
 		return false;

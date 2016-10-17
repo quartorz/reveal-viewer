@@ -40,5 +40,12 @@ public:
 			L"printToPdfFinished",
 			function,
 			V8_PROPERTY_ATTRIBUTE_NONE);
+
+		function = CefV8Value::CreateFunction(L"openFile", handler);
+
+		context->GetGlobal()->SetValue(
+			L"openFile",
+			function,
+			V8_PROPERTY_ATTRIBUTE_NONE);
 	}
 };
