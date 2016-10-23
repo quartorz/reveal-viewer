@@ -11,6 +11,7 @@
 
 #include <thread>
 #include <unordered_map>
+#include <memory>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
@@ -18,6 +19,7 @@
 #include "include/wrapper/cef_closure_task.h"
 
 #include "msr.hpp"
+#include "jupyter_server.hpp"
 #include "browser_handler.hpp"
 #include "utility.hpp"
 
@@ -27,7 +29,7 @@ class main_window : public browser_window
 {
 	// micro server for reveal.js
 	boost::asio::io_service io_service_;
-	msr::tcp_server server_ = { io_service_, 0 };
+	std::unique_ptr<server_base> server_;
 	std::thread server_thread_;
 
 	CefRefPtr<browser_handler> browser_handler_;
@@ -96,13 +98,10 @@ public:
 		}
 
 		try {
-			wchar_t exe_name[MAX_PATH];
-
-			::GetModuleFileNameW(nullptr, exe_name, MAX_PATH);
-
-			auto exe_dir = boost::filesystem::path(exe_name).remove_filename();
+			auto exe_dir = ::get_exe_path().remove_filename();
 			auto config_file = exe_dir / "config.ini";
 			boost::filesystem::path server_root;
+			bool use_jupyter = false;
 
 			if (exists(config_file)) {
 				std::wifstream ifs(config_file.wstring());
@@ -119,6 +118,14 @@ public:
 							server_root = canonical(*v, exe_dir, ec);
 						}
 					}
+
+					v = tree.get_optional<std::wstring>(L"Server.Type");
+
+					if (v) {
+						if (::_wcsicmp(v->c_str(), L"jupyter") == 0) {
+							use_jupyter = true;
+						}
+					}
 				}
 			}
 
@@ -129,8 +136,15 @@ public:
 					L"Select document root directory");
 			}
 
-			if (!server_.start(server_root.string()))
+			if (use_jupyter) {
+				server_.reset(new jupyter_server());
+			} else {
+				server_.reset(new msr::tcp_server(io_service_));
+			}
+
+			if (!server_->start(server_root)) {
 				return false;
+			}
 
 			server_thread_ = std::thread([&]() {
 				io_service_.run();
@@ -140,7 +154,7 @@ public:
 			LONG width, height;
 			std::tie(width, height) = this->get_size();
 
-			unsigned short port = server_.get_port();
+			unsigned short port = server_->get_port();
 
 			CefWindowInfo window_info;
 			window_info.SetAsChild(this->get_hwnd(), { 0, 0, width, height });
@@ -482,8 +496,11 @@ public:
 
 	void uninitialize() override
 	{
-		io_service_.stop();
-		server_.stop();
+		if (!io_service_.stopped()) {
+			io_service_.stop();
+		}
+
+		server_->stop();
 
 		if (server_thread_.joinable()) {
 			while (server_thread_.get_id() != std::thread::id()) {

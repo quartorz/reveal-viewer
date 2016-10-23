@@ -11,6 +11,8 @@
 #include <string>
 #include <sstream>
 
+#include "server_base.hpp"
+
 // Micro Server for Reveal.js
 
 namespace msr {
@@ -291,7 +293,7 @@ namespace msr {
 		}
 	};
 
-	class tcp_server {
+	class tcp_server : public server_base {
 		tcp::acceptor acceptor_;
 		std::string root_;
 		tcp_connection::pointer connection_;
@@ -315,17 +317,17 @@ namespace msr {
 		}
 
 	public:
-		tcp_server(boost::asio::io_service &io_service, unsigned short port)
-			: acceptor_(io_service, tcp::endpoint(boost::asio::ip::address::from_string("127.0.0.1"), port))
+		tcp_server(boost::asio::io_service &io_service)
+			: acceptor_(io_service, tcp::endpoint(boost::asio::ip::address::from_string("127.0.0.1"), 0))
 		{
 		}
 
-		bool start(const std::string &root)
+		bool start(const boost::filesystem::path &root) override
 		{
 			if (connection_)
 				return false;
 
-			root_ = root;
+			root_ = root.string();
 
 			try {
 				start_accept();
@@ -336,13 +338,13 @@ namespace msr {
 			return true;
 		}
 
-		void stop()
+		void stop() override
 		{
 			connection_.reset();
 			acceptor_.close();
 		}
 
-		unsigned short get_port() const
+		unsigned short get_port() override
 		{
 			return acceptor_.local_endpoint().port();
 		}

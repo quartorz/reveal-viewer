@@ -7,12 +7,19 @@ set(
   src/main.cpp
   src/main_window.hpp
   src/browser_window.hpp
+  src/server_base.hpp
   src/msr.hpp
+  src/jupyter_server.hpp
   src/utility.hpp
   src/browser_handler.hpp
   src/renderer_handler.hpp
   src/other_handler.hpp
   src/v8_handler.hpp
+)
+
+set(
+  CONSOLE_HELPER_SOURCES
+  src/console_helper.cpp
 )
 
 set(Boost_USE_STATIC_LIBS ON)
@@ -99,6 +106,7 @@ if( Boost_FOUND )
 endif()
 
 add_executable(reveal-viewer WIN32 ${SOURCES})
+add_executable(console-helper WIN32 ${CONSOLE_HELPER_SOURCES})
 
 add_definitions(-DUNICODE)
 add_definitions(-D_UNICODE)
