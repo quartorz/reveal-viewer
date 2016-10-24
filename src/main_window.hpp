@@ -51,6 +51,7 @@ class main_window : public browser_window
 		TOGGLE_NAVIGATE,
 		ZOOM_IN,
 		ZOOM_OUT,
+		FIND
 	};
 
 	static void set_font_families(CefBrowserSettings &settings)
@@ -163,15 +164,15 @@ public:
 
 			set_font_families(settings);
 
-			browser_ = CefBrowserHost::CreateBrowserSync(
+			browser(CefBrowserHost::CreateBrowserSync(
 				window_info, browser_handler_.get(), L"http://localhost:" + std::to_wstring(port),
-				settings, nullptr);
+				settings, nullptr));
 
 			if (browser_.get() == nullptr) {
 				return false;
 			}
 
-			hwnd_browser_ = browser_->GetHost()->GetWindowHandle();
+			hwnd_browser(browser_->GetHost()->GetWindowHandle());
 		} catch (std::exception &e) {
 			::MessageBoxA(this->get_hwnd(), e.what(), "Error", MB_OK);
 			return false;
@@ -261,6 +262,7 @@ public:
 
 			model->AddItem(static_cast<int>(menu_command::PRINT_TO_PDF), L"&Print to PDF");
 			model->AddItem(static_cast<int>(menu_command::SAVE_PAGE), L"&Save Page");
+			model->AddItem(static_cast<int>(menu_command::FIND), L"&Find");
 			model->AddItem(static_cast<int>(menu_command::TOGGLE_NAVIGATE), L"&Toggle Navigate Buttons");
 
 			model->AddSeparator();
@@ -344,6 +346,10 @@ public:
 				frame->GetSource(quote::cef::make_string_visitor([&](const CefString &s) {
 					MessageBoxW(get_hwnd(), s.c_str(), L"", 0);
 				}));*/
+				return true;
+
+			case menu_command::FIND:
+				window->show_find_dialog();
 				return true;
 
 			case menu_command::COPY_URL:
@@ -508,8 +514,8 @@ public:
 			}
 		}
 
-		hwnd_browser_ = nullptr;
-		browser_ = nullptr;
+		hwnd_browser(nullptr);
+		browser(nullptr);
 
 		for (auto &w : other_windows_) {
 			delete w.second;

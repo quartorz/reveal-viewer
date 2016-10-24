@@ -42,8 +42,6 @@ int APIENTRY wWinMain(HINSTANCE hinst, HINSTANCE, LPWSTR cmdline, int)
 
 	handles[1] = pi.hProcess;
 
-	DWORD exit_code = 0;
-
 	::SetConsoleCtrlHandler([](DWORD) -> BOOL {return TRUE; }, TRUE);
 
 	switch (::WaitForMultipleObjects(2, handles, FALSE, INFINITE)) {
@@ -53,7 +51,6 @@ int APIENTRY wWinMain(HINSTANCE hinst, HINSTANCE, LPWSTR cmdline, int)
 		break;
 
 	case WAIT_OBJECT_0 + 1:
-		::GetExitCodeProcess(handles[1], &exit_code);
 		break;
 	}
 

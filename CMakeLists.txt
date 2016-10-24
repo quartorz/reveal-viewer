@@ -15,6 +15,8 @@ set(
   src/renderer_handler.hpp
   src/other_handler.hpp
   src/v8_handler.hpp
+  src/find_dialog.hpp
+  src/button.hpp
 )
 
 set(

@@ -18,6 +18,11 @@
 
 #include <functional>
 
+#include "include/cef_client.h"
+
+#include "button.hpp"
+#include "find_dialog.hpp"
+
 template <typename Derived>
 struct quit_on_close {
 	bool WindowProc(Derived &window, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT &lresult)
@@ -72,42 +77,7 @@ class browser_window :
 
 	std::wstring document_title_;
 
-	struct button : quote::direct2d::flat_button {
-		QUOTE_DEFINE_SIMPLE_PROPERTY(
-			std::function<void()>,
-			callback,
-			accessor (setter),
-			default ([]() {}));
-		QUOTE_DEFINE_SIMPLE_PROPERTY(
-			std::function<void(state)>,
-			state_changed,
-			accessor (setter),
-			default ([](...) {}));
-
-		button()
-		{
-			get_font().use_custom_renderer(false);
-			get_font().set_weight(quote::direct2d::font_weight::light);
-			set_text_size(15.0f);
-			set_color(button::state::none, { 250, 250, 250 });
-			set_color(button::state::hover, { 255, 255, 255 });
-			set_color(button::state::push, { 200, 200, 200 });
-			set_text_color(button::state::none, { 128, 128, 128 });
-			set_text_color(button::state::hover, { 200, 200, 200 });
-			set_text_color(button::state::push, { 255, 255, 255, 150 });
-		}
-
-		void on_push() override
-		{
-			callback_();
-		}
-
-		void set_state(state s) override
-		{
-			state_changed_(s);
-			quote::direct2d::flat_button::set_state(s);
-		}
-	};
+	find_dialog find_dialog_;
 
 	button back_button_, forward_button_, overview_button_;
 
@@ -120,7 +90,7 @@ public:
 	QUOTE_DEFINE_SIMPLE_PROPERTY(
 		CefRefPtr<CefBrowser>,
 		browser,
-		accessor (all));
+		accessor (getter, const_getter));
 	QUOTE_DEFINE_SIMPLE_PROPERTY(
 		bool,
 		is_primary_window,
@@ -131,6 +101,12 @@ public:
 		hwnd_primary,
 		accessor (all),
 		default (nullptr));
+
+	void browser(const CefRefPtr<CefBrowser> &b)
+	{
+		find_dialog_.browser(b);
+		browser_ = b;
+	}
 
 	static const wchar_t *get_class_name()
 	{
@@ -229,6 +205,14 @@ public:
 		auto hwnd = this->get_hwnd();
 
 		::SetWindowTextW(hwnd, t.c_str());
+	}
+
+	void show_find_dialog()
+	{
+		if (find_dialog_.get_hwnd() == nullptr) {
+			find_dialog_.create(*this, nullptr, L"Find", CW_USEDEFAULT, CW_USEDEFAULT, 300, 32);
+			find_dialog_.show();
+		}
 	}
 
 	void draw(const quote::direct2d::paint_params &pp)
@@ -363,6 +347,8 @@ public:
 			zoom_in();
 		} else if (keycode == VK_OEM_MINUS && ::GetKeyState(VK_CONTROL) < 0) {
 			zoom_out();
+		} else if (keycode == L'F' && ::GetKeyState(VK_CONTROL) < 0) {
+			show_find_dialog();
 		}
 	}
 

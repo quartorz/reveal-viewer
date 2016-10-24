@@ -8,6 +8,7 @@
 #include <quote/cef/process_type.hpp>
 
 #include "main_window.hpp"
+#include "find_dialog.hpp"
 
 #include "browser_handler.hpp"
 #include "renderer_handler.hpp"
@@ -45,6 +46,8 @@ int run()
 	}
 
 	if (!main_window::register_class())
+		return 0;
+	if (!find_dialog::register_class())
 		return 0;
 
 	CefSettings settings;
