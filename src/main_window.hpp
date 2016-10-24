@@ -147,10 +147,12 @@ public:
 				return false;
 			}
 
-			server_thread_ = std::thread([&]() {
-				io_service_.run();
-				server_thread_.detach();
-			});
+			if (!use_jupyter) {
+				server_thread_ = std::thread([&]() {
+					io_service_.run();
+					server_thread_.detach();
+				});
+			}
 
 			LONG width, height;
 			std::tie(width, height) = this->get_size();
