@@ -222,7 +222,7 @@ public:
 				}
 			} else if (name == L"RevealViewer.OpenFile") {
 				auto arg = message->GetArgumentList()->GetString(0);
-				boost::filesystem::path path = server_.get_document_root();
+				boost::filesystem::path path = server_->get_document_root();
 				path /= arg.c_str();
 				boost::filesystem::path dir = path;
 				dir.remove_filename();
