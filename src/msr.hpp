@@ -349,7 +349,8 @@ namespace msr {
 			return acceptor_.local_endpoint().port();
 		}
 
-		const boost::filesystem::path &get_document_root() override		{
+		const boost::filesystem::path &get_document_root() override
+		{
 			return root_;
 		}
 	};
