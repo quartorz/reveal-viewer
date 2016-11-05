@@ -169,4 +169,8 @@ public:
 	{
 		return port_;
 	}
+	const boost::filesystem::path &get_document_root() override
+	{
+		return root_;
+	}
 };

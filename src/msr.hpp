@@ -295,11 +295,11 @@ namespace msr {
 
 	class tcp_server : public server_base {
 		tcp::acceptor acceptor_;
-		std::string root_;
+		boost::filesystem::path root_;
 		tcp_connection::pointer connection_;
 
 		void start_accept() {
-			connection_ = tcp_connection::create(acceptor_.get_io_service(), root_);
+			connection_ = tcp_connection::create(acceptor_.get_io_service(), root_.string());
 
 			acceptor_.async_accept(connection_->socket(),
 				boost::bind(&tcp_server::handle_accept, this, connection_,
@@ -327,7 +327,7 @@ namespace msr {
 			if (connection_)
 				return false;
 
-			root_ = root.string();
+			root_ = root;
 
 			try {
 				start_accept();
@@ -347,6 +347,11 @@ namespace msr {
 		unsigned short get_port() override
 		{
 			return acceptor_.local_endpoint().port();
+		}
+
+		const boost::filesystem::path &get_document_root() override
+		{
+			return root_;
 		}
 	};
 }

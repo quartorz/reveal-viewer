@@ -9,4 +9,5 @@ public:
 	virtual bool start(const boost::filesystem::path &root) = 0;
 	virtual void stop() = 0;
 	virtual unsigned short get_port() = 0;
+	virtual const boost::filesystem::path &get_document_root() = 0;
 };
