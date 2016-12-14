@@ -15,6 +15,7 @@
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include "include/wrapper/cef_closure_task.h"
 
@@ -221,14 +222,18 @@ public:
 					w.second->change_title();
 				}
 			} else if (name == L"RevealViewer.OpenFile") {
-				auto arg = message->GetArgumentList()->GetString(0);
-				boost::filesystem::path path = server_->get_document_root();
-				path /= arg.c_str();
-				boost::filesystem::path dir = path;
-				dir.remove_filename();
-				::ShellExecuteW(
-					this->get_hwnd(), L"open", path.c_str(), nullptr,
-					dir.c_str(), SW_SHOWDEFAULT);
+				auto url = browser->GetMainFrame()->GetURL().ToWString();
+
+				if (boost::starts_with(url, L"http://localhost:" + std::to_wstring(server_->get_port())) + L"/") {
+					auto arg = message->GetArgumentList()->GetString(0);
+					boost::filesystem::path path = server_->get_document_root();
+					path /= arg.c_str();
+					boost::filesystem::path dir = path;
+					dir.remove_filename();
+					::ShellExecuteW(
+						this->get_hwnd(), L"open", path.c_str(), nullptr,
+						dir.c_str(), SW_SHOWDEFAULT);
+				}
 			}
 
 			return false;
